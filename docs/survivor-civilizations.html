@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Survivor civilizations · The Reading Room</title><meta name="description" content="How Dead Siege factions trade, recruit survivors, move refugees, and fight over settlements. Includes operator commands and simulation design.">
+<meta name="color-scheme" content="light dark"><link rel="icon" href="assets/mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/style.css"><script src="assets/site.js" defer></script></head>
+<body class="document-page"><a class="skip" href="#main">Skip to content</a>
+<header class="masthead"><a class="brand" href="./"><span class="brand-mark" aria-hidden="true">R<span>↗</span></span><span>The Reading Room<small>MAHMOUD SHARIF ATA</small></span></a>
+<div class="header-right"><span class="edition">An independent collection</span><button class="theme" type="button" aria-label="Switch color theme">◐</button></div></header>
+<main id="main"><div id="top"></div><div class="document-intro"><a class="back" href="./">← Collection</a>
+<p class="eyebrow">Minecraft modding <span>/</span> REFERENCE NOTE</p><h1>Survivor civilizations</h1>
+<p class="deck">How Dead Siege factions trade, recruit survivors, move refugees, and fight over settlements. Includes operator commands and simulation design.</p><div class="metadata"><time datetime="2026-11-23">23 November 2026</time><span>·</span>4 min read</div>
+<div class="document-tools"><button type="button" data-copy>Copy page link ↗</button><button type="button" data-print>Print / save PDF</button><a href="sources/survivor-civilizations.md" download>Download Markdown ↓</a></div></div>
+<div class="reading-layout"><aside class="contents"><details open><summary>ON THIS PAGE</summary><nav aria-label="Document contents"><a href="#integration-design">Integration design</a><a href="#playing">Playing</a><a href="#administration-and-diagnostics">Administration and diagnostics</a><a href="#verification">Verification</a></nav></details><div class="side-note">A place to return to.<br>Read, follow the sources,<br>keep the useful parts.</div></aside>
+<article class="prose">
+<h2 id="integration-design">Integration design</h2>
+<div aria-label="Scrollable table" class="table-scroll" role="region" tabindex="0"><table>
+<thead>
+<tr>
+<th>Existing owner</th>
+<th>Integration</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>HordeRegistry, Horde and Migration</td>
+<td>Read dimension, position and surviving strength during scheduled strategic updates. The migration engine continues to own zombies.</td>
+</tr>
+<tr>
+<td>Settlements and VillagerHelpers</td>
+<td>Ordinary village economies and the player settlement keep their current ownership. Managed expedition villagers use a separate population ledger.</td>
+</tr>
+<tr>
+<td>Soldier and TaCZ</td>
+<td>Faction guards use the campaign soldier entity with faction-specific allegiance, targeting and specialization. Campaign roster slots remain reserved for campaign encounters.</td>
+</tr>
+<tr>
+<td>Recruit, SquadData and Recruiting</td>
+<td>Enlistment transfers a named individual to the player's squad and uses the recruit's existing progression and healing.</td>
+</tr>
+<tr>
+<td>CampaignData, CampaignSites and SiteData</td>
+<td>Discover existing strategic sites from campaign facts. Campaign blocks, objectives and campaign garrisons retain their existing lifecycle.</td>
+</tr>
+<tr>
+<td>Minimap and DeadSiegeNetwork</td>
+<td>Physical actors use normal entity tracking. The existing minimap snapshot assigns visible survivors a marker based on the viewing player’s relationship with them. Leader interactions use server-authoritative chat commands.</td>
+</tr>
+</tbody>
+</table></div>
+<p>CivilizationData owns one overworld ledger. A person has one UUID and at most one current mission or captor. Population, active defenders and available personnel are derived from that roster. Territory is owned by site, and a diplomatic agreement is keyed by an unordered faction pair. Operations reserve people and debit supplies before departure. Leader succession selects a surviving free member.</p>
+<p>A persisted strategic clock advances every 100 server ticks. Economic and diplomatic decisions run every 2,400 simulation ticks. Travel interpolates between recorded coordinates without consulting terrain in unloaded chunks. Nearby representation requires an already loaded chunk, a safe surface and an available entity slot. Physical combat and abstract resolution share the same mission and casualty ledger. Versioned persistence includes identities, cargo, relationships, mission progress and entity snapshots. Existing saves begin with an empty civilization ledger.</p>
+<p>Balance and compatibility risks include competing AI target rules, player recruitment during an operation, stale chunk entities after a restart, two players observing one operation, overlapping horde damage and siege resolution, and the number of loaded representatives. Test these at ownership transitions as well as in a quiet world.</p>
+<h2 id="playing">Playing</h2>
+<p>Look for named survivors around overworld camps, patrols and supply convoys. Right-click a survivor to open their conversation in chat. Each action checks proximity, line of sight, faction standing and current eligibility again on the server.</p>
+<ul>
+<li>Hold food and choose <strong>Supply</strong> to build trust. Honey bottles and golden apples contribute medical supplies.</li>
+<li>Hold an emerald and choose <strong>Trade</strong> at a settlement or convoy to purchase bread from its stock.</li>
+<li>At 10 reputation, an eligible survivor can join your squad. Refugees can join immediately if your squad has room. The recruit keeps their name, experience and equipped gear.</li>
+<li>Speak to a leader at 30 reputation to negotiate protection or an alliance. Allied leaders can dispatch relief to the campaign refuge. Killing zombies near a settlement builds reputation. Attacking residents damages it.</li>
+<li>Refugees displaced by hunger or hordes can wait at the campaign refuge for one Minecraft day. Accept individuals, give provisions, redirect them or escort them to another settlement. An escorted party pauses when its guide falls behind or disconnects.</li>
+<li>Captured personnel retain their roster identity and progression. Approach a prisoner to attempt a rescue, or negotiate with the holding faction. A reciprocal exchange requires a prisoner on both sides.</li>
+<li>To occupy a cleared installation for an ally, stand inside it and use <code>/faction capture &lt;allied-faction-uuid&gt;</code>. The server checks standing, territory ownership, war status and remaining defenders.</li>
+</ul>
+<h2 id="administration-and-diagnostics">Administration and diagnostics</h2>
+<p>Operators can use <code>/faction list</code>, <code>info</code>, <code>locate</code> and <code>territory</code> to inspect the ledger. <code>/faction create &lt;type&gt;</code> founds a faction at the command position. The six types are <code>remnants</code>, <code>settlers</code>, <code>raiders</code>, <code>scavengers</code>, <code>researchers</code> and <code>mercenaries</code>.</p>
+<p>Use <code>/faction relation &lt;a&gt; &lt;b&gt;</code> to inspect a pair. The same argument order works with <code>war</code>, <code>peace</code>, <code>alliance</code>, <code>protection</code>, <code>betray</code>, <code>cede</code> and <code>exchange</code>. Use <code>/military operation &lt;a&gt; &lt;b&gt;</code> after declaring war. <code>/military status &lt;a&gt;</code> reports active missions, remaining travel time, casualties and history. <code>/survivor spawn &lt;count&gt;</code> creates a new group. <code>/survivor relocate &lt;id&gt;</code> dispatches refugees toward the operator's location. Simulation commands queue bounded increments on the server thread.</p>
+<p>World-specific settings live in <code>serverconfig/deadsiege-civilizations.toml</code>. Activation and deactivation radii, physical population cap, maximum patrol size and role selection priorities are configurable. A patrol priority of zero excludes that specialization from patrols. Supplies in the status output are ordered food, ammunition, medicine, materials, weapons and fuel.</p>
+<h2 id="verification">Verification</h2>
+<ul>
+<li>Run <code>gradlew.bat --offline build</code> for the release jar and build checks.</li>
+<li>Run <code>gradlew.bat --offline -I tools/campaign-test.init.gradle runGameTestServer</code> for the complete Forge suite, including physical ownership, two observers, refugee migration, convoys, conquest and concurrent wars with 2,048 initial residents.</li>
+<li>Run <code>tools/test-civilization-restart.ps1</code> to create two factions, dispatch an assault and verify its identity, diplomacy and roster across three dedicated-server launches.</li>
+<li>Run <code>tools/play.ps1 -Hidden -VerificationScenario civilization -VerificationDirectory build/packaged-civilization</code> to exercise the packaged mod with the client and TaCZ. The client writes its verdict to <code>client-test-result.txt</code> in that verification directory. Install matching 0.4.0 builds on clients and servers. Protocol 16 includes the synchronized faction-soldier flag used by the minimap.</li>
+</ul>
+</article></div><div class="endnote"><span aria-hidden="true">✳</span> End of document <a href="./">Explore the collection ↗</a></div></main><footer class="footer"><span>The Reading Room <span aria-hidden="true">/</span> Mahmoud Sharif Ata</span><a href="#top">Back to top ↑</a></footer>
+<div class="toast" role="status" aria-live="polite"></div></body></html>
